@@ -315,7 +315,8 @@ try {
     </html>
     `;
 
-    fs.writeFileSync('./cv.html', htmlContent);
+    fs.writeFileSync('./index.html', htmlContent);
+    console.log("✅ index.html généré ! Prêt pour GitHub Pages.");
     console.log("✅ CV terminé avec bouton PDF !");
 
 } catch (e) {
