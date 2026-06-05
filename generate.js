@@ -1,15 +1,31 @@
 const fs = require('fs');
+const path = require('path');
 const yaml = require('js-yaml');
 
 try {
-    const fileContents = fs.readFileSync('./cv.yaml', 'utf8');
+    // Resolve paths relative to this script file so it works when executed from repo root
+    // Prefer a fixed fallback file if present to avoid parsing corrupted cv.yaml
+    const candidates = ['cv.yaml', 'cv.yaml'];
+    const yamlFile = candidates.map(f => path.join(__dirname, f)).find(p => fs.existsSync(p));
+    if (!yamlFile) throw new Error('Aucun fichier cv.yaml trouvé');
+    const fileContents = fs.readFileSync(yamlFile, 'utf8');
     let data = yaml.load(fileContents) || {};
+
+    // Normaliser `competences` : accepter l'ancien format (objet) ou le nouveau (tableau)
+    if (!data.competences) {
+        data.competences = [];
+    } else if (!Array.isArray(data.competences) && typeof data.competences === 'object') {
+        data.competences = Object.entries(data.competences).map(([categorie, skills]) => ({
+            categorie,
+            skills: Array.isArray(skills) ? skills : []
+        }));
+    }
     
     // Sécurisation des données
     data.infos = data.infos || {};
     data.infos.contact = data.infos.contact || {};
     data.infos.liens = data.infos.liens || {};
-    data.competences = data.competences || [];
+    // `data.competences` already normalisé plus haut
     data.experiences = data.experiences || [];
     data.formations = data.formations || [];
     data.langues = data.langues || [];
@@ -37,19 +53,28 @@ try {
         <title>CV ${data.infos.nom || 'Candidat'}</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
             
             :root {
-                --primary: #0f172a;
+                --primary: #081124;
                 --accent: #0ea5e9;
-                --text-dark: #334155;
-                --text-light: #94a3b8;
+                --accent-2: #14b8a6;
+                --accent-3: #f59e0b;
+                --bg: #f1f5f9;
+                --surface: #ffffff;
+                --surface-soft: #f8fafc;
+                --text-dark: #0f172a;
+                --text-light: #526071;
                 --sidebar-text: #e2e8f0;
             }
 
             body {
-                font-family: 'Inter', sans-serif;
-                background: #cbd5e1;
+                font-family: 'Manrope', sans-serif;
+                background:
+                    radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 25%),
+                    radial-gradient(circle at top right, rgba(20, 184, 166, 0.14), transparent 22%),
+                    radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.12), transparent 24%),
+                    linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ecfeff 100%);
                 margin: 0;
                 display: flex;
                 justify-content: center;
@@ -60,61 +85,69 @@ try {
             .page {
                 width: 210mm;
                 min-height: 297mm;
-                background: white;
+                background: var(--surface);
                 display: grid;
                 grid-template-columns: 30% 70%;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                box-shadow:
+                    0 20px 60px rgba(15, 23, 42, 0.14),
+                    0 0 0 1px rgba(14, 165, 233, 0.08),
+                    0 0 45px rgba(20, 184, 166, 0.08);
                 margin: 20px 0;
                 position: relative; /* Pour positionnement */
+                overflow: hidden;
+                border: 1px solid rgba(14, 165, 233, 0.10);
             }
 
             /* --- SIDEBAR --- */
             aside {
-                background: var(--primary);
+                background: linear-gradient(180deg, #081124 0%, #0f2747 48%, #0f766e 100%);
                 color: white;
                 padding: 30px 20px;
                 display: flex; flex-direction: column; font-size: 13px;
+                box-shadow: inset -1px 0 0 rgba(255,255,255,0.08);
             }
 
             .photo-container { margin-bottom: 25px; display: flex; justify-content: center; }
             .profile-photo {
                 width: 140px; height: 140px; object-fit: cover;
-                border-radius: 12px; border: 3px solid var(--accent); background-color: white;
+                border-radius: 14px; border: 3px solid rgba(255,255,255,0.85); background-color: white;
+                box-shadow: 0 12px 30px rgba(8, 17, 36, 0.35);
             }
             .photo-placeholder {
                 width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 12px;
                 display: flex; align-items: center; justify-content: center;
-                color: var(--accent); font-weight: bold; border: 2px dashed var(--accent);
+                color: #67e8f9; font-weight: bold; border: 2px dashed rgba(103,232,249,0.45);
             }
 
             .sidebar-group { margin-bottom: 25px; }
             aside h2 {
-                color: var(--accent); font-size: 14px; text-transform: uppercase;
-                letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.15);
+                color: #ecfeff; font-size: 14px; text-transform: uppercase;
+                letter-spacing: 1px; border-bottom: 1px solid rgba(103,232,249,0.20);
                 padding-bottom: 6px; margin-bottom: 12px; font-weight: 700;
             }
 
             .info-row { display: flex; align-items: center; margin-bottom: 10px; color: var(--sidebar-text); }
-            .icon-box { width: 20px; display: flex; justify-content: center; margin-right: 10px; color: var(--accent); font-size: 14px; }
+            .icon-box { width: 20px; display: flex; justify-content: center; margin-right: 10px; color: #67e8f9; font-size: 14px; }
             
             .link-text { 
-                color: var(--sidebar-text); text-decoration: none; 
-                border-bottom: 1px dotted rgba(255,255,255,0.3); transition: 0.2s;
+                color: #e0f2fe; text-decoration: none; 
+                border-bottom: 1px dotted rgba(103,232,249,0.35); transition: 0.2s;
                 word-break: break-all; font-size: 11px;
             }
 
             .tags-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
-            .tag-dark { background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--sidebar-text); }
-            .tag-light { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid #e2e8f0; }
+            .tag-dark { background: rgba(255,255,255,0.12); padding: 3px 8px; border-radius: 999px; font-size: 11px; color: #f8fafc; border: 1px solid rgba(103,232,249,0.12); }
+            .tag-light { background: linear-gradient(135deg, #eff6ff, #ecfeff); color: #0f766e; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid #cce8e6; }
 
             .lang-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
             .lang-level { color: var(--accent); font-size: 11px; font-weight: 600; }
 
             /* --- MAIN --- */
-            main { padding: 40px 35px; display: flex; flex-direction: column; }
-            header { margin-bottom: 25px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
-            h1 { margin: 0; font-size: 34px; text-transform: uppercase; color: var(--primary); line-height: 1; letter-spacing: -1px; }
-            .job-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-top: 5px; text-transform: uppercase; }
+            main { padding: 40px 35px; display: flex; flex-direction: column; background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%); }
+            header { margin-bottom: 25px; border-bottom: 2px solid #dbe4ee; padding-bottom: 15px; }
+            h1 { margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 34px; text-transform: uppercase; color: var(--primary); line-height: 1; letter-spacing: -1px; }
+            .job-title { font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+            .subtitle { font-size: 13px; font-weight: 600; color: #475569; margin-top: 4px; }
             .summary { margin-top: 15px; font-size: 13px; line-height: 1.6; color: var(--text-dark); }
 
             .section-title {
@@ -123,17 +156,17 @@ try {
                 text-transform: uppercase;
             }
             .section-icon { 
-                background: #e0f2fe; color: var(--accent); 
+                background: linear-gradient(135deg, var(--accent), var(--accent-2) 55%, var(--accent-3)); color: white; 
                 width: 28px; height: 28px; border-radius: 50%; 
                 display: flex; align-items: center; justify-content: center; 
-                margin-right: 10px; font-size: 14px;
+                margin-right: 10px; font-size: 14px; box-shadow: 0 8px 18px rgba(139, 92, 246, 0.28);
             }
 
-            .exp-item { margin-bottom: 18px; border-left: 2px solid #e2e8f0; padding-left: 15px; margin-left: 10px; }
+            .exp-item { margin-bottom: 18px; border-left: 2px solid #93c5fd; padding-left: 15px; margin-left: 10px; }
             .exp-header { display: flex; justify-content: space-between; align-items: baseline; }
             .exp-role { font-weight: 700; font-size: 14px; color: var(--primary); }
             .exp-date { font-size: 12px; color: #64748b; font-weight: 600; }
-            .exp-company { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+            .exp-company { font-size: 13px; font-weight: 700; color: #0f766e; margin-bottom: 4px; }
             .exp-details { padding-left: 0; margin: 4px 0; list-style-position: inside; }
             .exp-details li { font-size: 12px; color: #475569; margin-bottom: 2px; line-height: 1.4; }
             .exp-details li::marker { color: var(--accent); font-size: 10px; }
@@ -141,12 +174,12 @@ try {
             .edu-item { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
             .edu-diploma { font-weight: 700; color: var(--primary); }
             .edu-school { color: #64748b; font-size: 12px; }
-            .edu-year { font-weight: 600; color: var(--accent); font-size: 12px; min-width: 80px; text-align: right; }
+            .edu-year { font-weight: 700; color: #0f766e; font-size: 12px; min-width: 80px; text-align: right; }
 
             .certif-box { 
-                background: #f8fafc; border: 1px solid #e2e8f0; 
+                background: linear-gradient(135deg, #eff6ff, #ecfeff); border: 1px solid #cce8e6; 
                 padding: 8px; border-radius: 6px; font-size: 12px; 
-                color: #334155; font-weight: 500; display: flex; align-items: center; margin-bottom: 6px;
+                color: #334155; font-weight: 600; display: flex; align-items: center; margin-bottom: 6px;
             }
 
             /* STYLE DU BOUTON FLOTTANT */
@@ -159,20 +192,22 @@ try {
                 border: none;
                 padding: 15px 25px;
                 border-radius: 50px;
-                font-family: 'Inter', sans-serif;
+                font-family: 'Manrope', sans-serif;
                 font-size: 16px;
                 font-weight: bold;
                 cursor: pointer;
-                box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
-                transition: transform 0.2s, background 0.2s;
+                box-shadow: 0 16px 35px rgba(14, 165, 233, 0.30);
+                transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
                 display: flex;
                 align-items: center;
                 gap: 10px;
                 z-index: 1000;
+                background: linear-gradient(135deg, var(--accent), var(--accent-2) 52%, var(--accent-3));
             }
             .download-btn:hover {
-                background-color: #0284c7;
+                background: linear-gradient(135deg, #0284c7, #0f766e 55%, #d97706);
                 transform: translateY(-2px);
+                box-shadow: 0 18px 40px rgba(14, 165, 233, 0.38);
             }
 
             @media print {
@@ -250,6 +285,7 @@ try {
                 <header>
                     <h1>${data.infos.nom || ''}</h1>
                     <div class="job-title">${data.infos.titre || ''}</div>
+                    <div class="subtitle">${data.infos.sous_titre || data.infos.soustitre || ''}</div>
                     <div class="summary">${data.infos.accroche || ''}</div>
                 </header>
 
@@ -300,25 +336,19 @@ try {
                         </div>
                     </div>
                 </div>
-
-                <div style="margin-top: 25px;">
-                    <div class="section-title">
-                        <div class="section-icon"><i class="fa-solid fa-user-gear"></i></div> Soft Skills
-                    </div>
-                    <div class="tags-cloud" style="gap:10px;">
-                        ${data.soft_skills.map(s => `<span class="tag-light" style="background:#fff; border-color:var(--accent); color:var(--primary);">${s}</span>`).join('')}
-                    </div>
-                </div>
             </main>
         </div>
     </body>
     </html>
     `;
 
-    fs.writeFileSync('./index.html', htmlContent);
+    const outFile = path.join(__dirname, 'index.html');
+    fs.writeFileSync(outFile, htmlContent);
     console.log("✅ index.html généré ! Prêt pour GitHub Pages.");
     console.log("✅ CV terminé avec bouton PDF !");
 
 } catch (e) {
     console.log("❌ Erreur :", e.message);
 }
+
+
